@@ -27,6 +27,14 @@ describe ActiveFedora::RDF::IndexingService do
     end
   end
 
+  let(:f3) do
+    MyObj.new.tap do |obj|
+      obj.created = [Date.parse("2015-10-10")]
+      obj.title = ["\u0004Bad \u0015Wolf"]
+      obj.publisher = [RDF::Literal.new("Unicode Encoding Inc", language: :en)]
+    end
+  end
+
   let(:index_config) do
     {}.tap do |index_config|
       index_config[:created] = ActiveFedora::Indexing::Map::IndexObject.new(:created) do |index|
@@ -55,6 +63,7 @@ describe ActiveFedora::RDF::IndexingService do
   end
 
   let(:indexer) { described_class.new(f2) }
+  let(:unicode_indexer) { described_class.new(f3) }
 
   describe "#generate_solr_document" do
     let(:solr_obj) { indexer.generate_solr_document(lambda { |key| "solr_rdf__#{key}" }) }
@@ -83,6 +92,7 @@ describe ActiveFedora::RDF::IndexingService do
 
   describe "#fields" do
     let(:fields) { indexer.send(:fields) }
+    let(:unicode_fields) { unicode_indexer.send(:fields) }
 
     it "returns the right fields" do
       expect(fields.keys).to eq ["created", "title", "publisher", "based_near", "related_url"]
@@ -95,6 +105,10 @@ describe ActiveFedora::RDF::IndexingService do
 
     it "returns the right type information" do
       expect(fields["created"].type).to eq :date
+    end
+
+    it "properly escapes Unicode control characters" do
+      expect(unicode_fields["title"]).to eq ["Bad Wolf"]
     end
   end
 end
